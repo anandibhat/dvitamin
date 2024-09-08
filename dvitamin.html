@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vitamin D Sunlight Time</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    #time-suggestion {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>Find the Best Time to Get Vitamin D</h1>
+  
+  <!-- Country selection dropdown -->
+  <label for="country">Choose a country:</label>
+  <select id="country">
+    <option value="India">India</option>
+    <option value="USA">USA</option>
+    <option value="Australia">Australia</option>
+    <option value="France">France</option>
+    <option value="Germany">Germany</option>
+  </select>
+  
+  <button id="fetch-times">Get Sun Times</button>
+  
+  <div id="status">Select a country to get sun times.</div>
+  <div id="sun-times"></div>
+  <div id="time-suggestion"></div>
+
+  <script>
+    const status = document.getElementById('status');
+    const sunTimesDiv = document.getElementById('sun-times');
+    const timeSuggestionDiv = document.getElementById('time-suggestion');
+    const countrySelect = document.getElementById('country');
+    const fetchButton = document.getElementById('fetch-times');
+
+    // Country timezone mappings (this will be used to convert UTC to local time)
+    const countryTimezones = {
+      'India': 'Asia/Kolkata',
+      'USA': 'America/New_York',
+      'Australia': 'Australia/Sydney',
+      'France': 'Europe/Paris',
+      'Germany': 'Europe/Berlin'
+    };
+
+    // Latitude and longitude lookup based on the selected country
+    function getCountryLatLng(country) {
+      const countries = {
+        'USA': { lat: 37.0902, lng: -95.7129 },
+        'India': { lat: 20.5937, lng: 78.9629 },
+        'Australia': { lat: -25.2744, lng: 133.7751 },
+        'France': { lat: 46.6034, lng: 1.8883 },
+        'Germany': { lat: 52.5200, lng: 13.4050 }
+      };
+      return countries[country];
+    }
+
+    // Fetch Sunrise/Sunset API data based on location
+    function fetchSunTimes(lat, lng, timezone) {
+      const apiUrl = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&formatted=0`;
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          const sunriseUTC = new Date(data.results.sunrise);
+          const sunsetUTC = new Date(data.results.sunset);
+          
+          // Convert UTC to local time based on timezone
+          const sunriseLocal = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            timeStyle: 'medium',
+            hour12: true
+          }).format(sunriseUTC);
+          
+          const sunsetLocal = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            timeStyle: 'medium',
+            hour12: true
+          }).format(sunsetUTC);
+          
+          // Display the actual sunrise and sunset times
+          sunTimesDiv.innerHTML = `<p>Sunrise: ${sunriseLocal}</p><p>Sunset: ${sunsetLocal}</p>`;
+          
+          // Suggest optimal Vitamin D time based on sunrise/sunset
+          suggestOptimalVitaminDTime(sunriseUTC, sunsetUTC, timezone);
+        })
+        .catch(error => {
+          sunTimesDiv.innerHTML = 'Failed to fetch sun times.';
+          console.error('Error fetching sun times:', error);
+        });
+    }
+
+    // Suggest the best time to go out for Vitamin D based on sunrise and sunset
+    function suggestOptimalVitaminDTime(sunriseUTC, sunsetUTC, timezone) {
+      const twoHoursAfterSunrise = new Date(sunriseUTC.getTime() + 2 * 60 * 60 * 1000);
+      const twoHoursBeforeSunset = new Date(sunsetUTC.getTime() - 2 * 60 * 60 * 1000);
+
+      const optimalStart = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeStyle: 'medium',
+        hour12: true
+      }).format(twoHoursAfterSunrise);
+      
+      const optimalEnd = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeStyle: 'medium',
+        hour12: true
+      }).format(twoHoursBeforeSunset);
+
+      // Display optimal times
+      timeSuggestionDiv.innerHTML = `The best time to go outside is between ${optimalStart} and ${optimalEnd}.`;
+    }
+
+    // Event listener for fetching sun times based on country selection
+    fetchButton.addEventListener('click', () => {
+      const selectedCountry = countrySelect.value;
+      const latLng = getCountryLatLng(selectedCountry);
+      const timezone = countryTimezones[selectedCountry];
+      
+      if (latLng && timezone) {
+        status.textContent = `Fetching sun times for ${selectedCountry}...`;
+        fetchSunTimes(latLng.lat, latLng.lng, timezone);
+      } else {
+        status.textContent = 'Could not find the selected country.';
+      }
+    });
+  </script>
+</body>
+</html>
